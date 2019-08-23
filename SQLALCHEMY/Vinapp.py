@@ -1,5 +1,5 @@
 import pandas as pd
-from flask import Flask , jsonify
+from flask import Flask , jsonify, request
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -37,27 +37,38 @@ app = Flask(__name__)
 def welcome():
     """List all available api routes."""
     return (
-        f"/api/v1.0/precipitation<br/>"
-        f'/api/v1.0/stations<br/>'
-        f'/api/v1.0/tobs<br/>'
-        f'/api/v1.0/<start>'
-        f'/api/v1.0/<start>/<end>'
+        f'Available Routes: <br/>'
+        f'<a href="/api/v1.0/precipitation">/api/v1.0/precipitation</a><br/>'
+        f'<a href="/api/v1.0/stations">/api/v1.0/stations</a><br/>'
+        f'<a href="/api/v1.0/tobs">/api/v1.0/tobs</a><br/><br/>'
+        f'<div> Use following link if you have a date range. \
+                Copy paste the link below after the server address. \
+                Enter the start date in yyyy-mm-dd format <br/>\
+                For example : Enter in following way after the server address<br/>\
+                /api/v1.0/2013-01-01        </div><br/>'
+        f'/api/v1.0/<br/><br/><br/><br/>'        
+        f'<div> Use following link if you have a date range. \
+                Copy paste the link below after the server address. \
+                Enter the start and end date in yyyy-mm-dd format <br/>\
+                For example : Enter in following way after the server address<br/>\
+                /api/v1.0/2013-01-01/2013-12-31       </div><br/>'
+        f'/api/v1.0/'
     )
 @app.route('/api/v1.0/precipitation')
 def precipitation():
     session = Session(engine)
     max_date=session.query(func.max(Measurement.date)).scalar()
-    max_date = datetime.datetime.strptime(max_date, "%Y-%m-%d")
+    max_date = dt.datetime.strptime(max_date, "%Y-%m-%d")
     oneyrolddate =max_date -timedelta(days=366)
     que_precip = session.query(Measurement.date,Measurement.prcp).filter((Measurement.date) > oneyrolddate).all()
     precipitation_list = []
-    for date, precepetation in que_precip:
+    for date, prcp in que_precip:
         precipitation_dict ={}
-        precepetation_dict["Date"] = date
-        precipitation_dict['Precipitation']= precp
+        precipitation_dict["Date"] = date
+        precipitation_dict['Precipitation']= prcp
         precipitation_list.append(precipitation_dict)
     
-    return jsonify(precipitation_list)
+    return jsonify(precipitation_list)  
 
 @app.route('/api/v1.0/stations')
 def stations():
@@ -70,7 +81,44 @@ def stations():
         station_list.append(station_dict)
     return jsonify(station_list)
 
-@
+@app.route('/api/v1.0/tobs')
+def temperatures():
+    session = Session(engine)
+    
+    max_date=session.query(func.max(Measurement.date)).scalar()
+    max_date = dt.datetime.strptime(max_date, "%Y-%m-%d")
+    oneyrolddate =max_date -timedelta(days=366)
+    que_temps = session.query(Measurement.date,Measurement.tobs).filter((Measurement.date) > oneyrolddate).all()
+    temp_list = []
+    for date, tobs in que_temps:
+        temp_dict ={}
+        temp_dict["Date"] = date
+        temp_dict['Temperature']= tobs
+        temp_list.append(temp_dict)
+    
+    return jsonify(temp_list)  
+
+@app.route ('/api/v1.0/<start>/<end>')
+def start_end_date (start,end):
+    session = Session(engine)
+
+    TMIN = session.query(func.min(Measurement.tobs)).filter(Measurement.date >= start).filter(Measurement.date <= end).scalar()
+    TAVG = session.query(func.avg(Measurement.tobs)).filter(Measurement.date >= start).filter(Measurement.date <= end).scalar()
+    TMAX = session.query(func.max(Measurement.tobs)).filter(Measurement.date >= start).filter(Measurement.date <= end).scalar()
+    temp_stats = [TMIN, TAVG, TMAX]
+    return jsonify(temp_stats)
+
+@app.route ('/api/v1.0/<start>')
+def start_date (start):
+    session = Session(engine)
+    
+    TMIN = session.query(func.min(Measurement.tobs)).filter(Measurement.date >= start).scalar()
+    TAVG = session.query(func.avg(Measurement.tobs)).filter(Measurement.date >= start).scalar()
+    TMAX = session.query(func.max(Measurement.tobs)).filter(Measurement.date >= start).scalar()
+    temp_stats = [TMIN, TAVG, TMAX]
+    return jsonify(temp_stats)
+    
+
 
 if __name__ == '__main__':
     app.run(debug=True)
